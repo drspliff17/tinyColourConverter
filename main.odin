@@ -1,10 +1,13 @@
 package main
 
+//TODO: Add Validation for HEX
+// Add additional validation for RGB (clamped values 0-255)
+
 import "core:c"
 import "core:fmt"
 import "core:os"
 import "core:strconv"
-import st "core:strings"
+import "core:strings"
 import "core:unicode"
 import rl "vendor:raylib"
 
@@ -58,14 +61,14 @@ HexToRgb :: proc(hex: string) -> (u8, u8, u8, bool) {
 }
 
 RgbToRL :: proc(c: string) -> rl.Color {
-	parts := st.split(c, ",", context.allocator)
+	parts := strings.split(c, ",", context.allocator)
 	if len(parts) != 3 {
 		return {0, 0, 0, 0}
 	}
 
-	r64, _ := strconv.parse_int(st.trim_space(parts[0]))
-	g64, _ := strconv.parse_int(st.trim_space(parts[1]))
-	b64, _ := strconv.parse_int(st.trim_space(parts[2]))
+	r64, _ := strconv.parse_int(strings.trim_space(parts[0]))
+	g64, _ := strconv.parse_int(strings.trim_space(parts[1]))
+	b64, _ := strconv.parse_int(strings.trim_space(parts[2]))
 
 	return rl.Color{u8(r64), u8(g64), u8(b64), 255}
 }
@@ -91,14 +94,14 @@ ParseString :: proc(c: string, e: ^Entry) -> bool {
 		e.g = g
 		e.b = b
 	} else {
-		parts := st.split(c, ",", context.allocator)
+		parts := strings.split(c, ",", context.allocator)
 		if len(parts) != 3 {
 			return false
 		}
 
-		r64, _ := strconv.parse_int(st.trim_space(parts[0]))
-		g64, _ := strconv.parse_int(st.trim_space(parts[1]))
-		b64, _ := strconv.parse_int(st.trim_space(parts[2]))
+		r64, _ := strconv.parse_int(strings.trim_space(parts[0]))
+		g64, _ := strconv.parse_int(strings.trim_space(parts[1]))
+		b64, _ := strconv.parse_int(strings.trim_space(parts[2]))
 
 		e.r = u8(r64)
 		e.g = u8(g64)
@@ -160,7 +163,7 @@ DumpValue :: proc(filepath, value: string) {
 	home, _ := os.user_home_dir(context.allocator)
 	defer delete_string(home)
 
-	if !st.starts_with(filepath, home) {
+	if !strings.starts_with(filepath, home) {
 		filepath, _ := os.join_path([]string{home, filepath}, context.allocator)
 		defer delete_string(filepath)
 	}
@@ -192,7 +195,7 @@ DumpValue :: proc(filepath, value: string) {
 RGB_ValidateValue :: proc(value: string) -> bool {
 	if len(value) == 0 do return false
 
-	split, serr := st.split(value, ",", context.allocator)
+	split, serr := strings.split(value, ",", context.allocator)
 	defer delete_slice(split)
 	if serr != nil do return false
 
@@ -206,6 +209,31 @@ RGB_ValidateValue :: proc(value: string) -> bool {
 		}
 	}
 	return true
+}
+
+printHelp :: proc() {
+	str := `Convert Colours
+Options:
+  -e  / --entries | Required for multiple value input [Always last option]
+  -d  / --dump    | Takes filepath, output values to there instead of Notify
+
+Flags:
+  -x  / --hex     | Output only the hex value(s)
+  -fx / --fhex    | Output only the formatted hex value(s)
+  -i  / --int     | Output only the c.int value(s)
+
+Notes:
+  By default, tcc will print all conversion data, if a flag is not given.
+  The -e option must always be the final argument, before the input values
+
+  If using only one input, and no specified flags, the -e is optional
+
+Examples:
+  tcc 40,50,60
+  tcc -e "#A19FC4" 35,60,70
+  tcc -fx -e 90,60,20 120,200,160 "#A49C93"
+`
+	fmt.print(str)
 }
 
 // Determines what happens with the output data
@@ -253,7 +281,7 @@ main :: proc() {
 
 	switch (len(args)) {
 	case 0:
-		fmt.eprintln("Invalid Usage: Provide RGB Value to convert (CSV)")
+		printHelp()
 		os.exit(1)
 	case 1:
 		SKIP_ARGCHECK = true
@@ -313,8 +341,7 @@ main :: proc() {
 	defer delete_string(outstr)
 
 	for e in args {
-		//NOTE: Make this have a HEX validate too
-		if !st.starts_with(e, "#") {
+		if !strings.starts_with(e, "#") {
 			if !RGB_ValidateValue(e) {
 				fmt.eprintfln("Invalid RGB Value: %s", e)
 				continue
@@ -336,7 +363,7 @@ main :: proc() {
 			Notify(value)
 
 		case .DUMP:
-			outstr = st.join([]string{outstr, value}, "\n", context.allocator)
+			outstr = strings.join([]string{outstr, value}, "\n", context.allocator)
 		}
 	}
 
